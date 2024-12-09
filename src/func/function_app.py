@@ -5,7 +5,7 @@ import azure.functions as func
 import json
 app = func.FunctionApp()
 @app.route(route="echo", auth_level=func.AuthLevel.ANONYMOUS)
-def echo(req: func.HttpRequest) -> func.HttpResponse:
+async def echo(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
     
     # Record the time request arrived
