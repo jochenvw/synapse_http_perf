@@ -28,6 +28,7 @@ The test involved calling an HTTP endpoint with typical response times of ~1 sec
 - **Executor-side async implementation** emerged as the second-best performer
   - Provides better scalability characteristics
   - Recommended for high-volume production workloads
+  - Spark shows handling multiple tasks per executor in parallel: [img](assets/distributed%20-%20async.png)
 
 - **Synchronous implementations**:
   - **Driver-side synchronous implementation** was used primarily as a benchmark
@@ -37,6 +38,7 @@ The test involved calling an HTTP endpoint with typical response times of ~1 sec
   - **Executor-side synchronous implementation** leverages parallelization but inefficiently
     - Runs only one HTTP request per core at a time
     - Very expensive way to scale due to inefficient resource utilization
+    - Spark shows handling single tasks per executor in parallel: [img](assets/distributed%20-%20sync.png)
 
 ## Results
 
