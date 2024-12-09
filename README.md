@@ -36,7 +36,7 @@ The test involved calling an HTTP endpoint with typical response times of ~1 sec
     - Demonstrates expected lower performance compared to async patterns
 
   - **Executor-side synchronous implementation** leverages parallelization but inefficiently
-    - Runs only one HTTP request per core at a time
+    - Runs only one HTTP request per executor at a time? Or per core? - not sure.
     - Very expensive way to scale due to inefficient resource utilization
     - Spark shows handling single tasks per executor in parallel: [img](assets/distributed%20-%20sync.png)
 
