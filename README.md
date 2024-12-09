@@ -40,7 +40,11 @@ The test involved calling an HTTP endpoint with typical response times of ~1 sec
 
 ## Results
 
+Running with 1 executor:
 ![Benchmark Results](assets/benchmark_1_executor.png)
+
+Running with 5 executors:
+![Benchmark Results](assets/benchmark_5_executors.png)
 
 
 ## Links
