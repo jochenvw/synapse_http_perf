@@ -6,6 +6,9 @@ Experiment to optimize HTTP performance patterns when calling external services 
 
 This project evaluates different approaches for making high-volume HTTP requests from Apache Spark, comparing performance between driver-based and executor-based implementations, using both synchronous and asynchronous patterns.
 
+Note: I don't think it's a good idea to use a Spark cluster to perform a large number of HTTP requests per se (as in, if it's the only reason). This is only for research purposes for a customer and is not recommended for production use.
+[GPT has some solid insights on this as well IMO](https://chatgpt.com/share/6757535e-8874-800f-9e38-b1eb32b6499e)
+
 ## Test Scenarios
 
 Four implementation patterns were evaluated:
