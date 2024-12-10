@@ -12,10 +12,10 @@ Note: I don't think it's a good idea to use a Spark cluster to perform a large n
 ## Test Scenarios
 
 Four implementation patterns were evaluated:
-1. Synchronous calls from the driver
-2. Asynchronous calls from the driver
-3. Synchronous calls distributed across Spark executors
-4. Asynchronous calls distributed across Spark executors
+1. [Synchronous calls from the driver](https://github.com/jochenvw/synapse_http_perf/blob/6aaa7c95fe0855cfa1c958d2e51a6f80dca6e263/src/notebooks/notebook.ipynb#L102-L129)
+2. [Asynchronous calls from the driver](https://github.com/jochenvw/synapse_http_perf/blob/6aaa7c95fe0855cfa1c958d2e51a6f80dca6e263/src/notebooks/notebook.ipynb#L211-L244)
+3. [Synchronous calls distributed across Spark executors](https://github.com/jochenvw/synapse_http_perf/blob/6aaa7c95fe0855cfa1c958d2e51a6f80dca6e263/src/notebooks/notebook.ipynb#L332-L381)
+4. [Asynchronous calls distributed across Spark executors](https://github.com/jochenvw/synapse_http_perf/blob/6aaa7c95fe0855cfa1c958d2e51a6f80dca6e263/src/notebooks/notebook.ipynb#L466-L531)
 
 The test involved calling an HTTP endpoint with typical response times of ~1 second, attempting to maximize throughput.
 
