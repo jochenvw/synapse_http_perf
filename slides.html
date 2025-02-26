@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>HTTP Benchmark on Spark (Mermaid Diagrams)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.5;
+    }
+    h1, h2, h3 {
+      margin-top: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .experiment {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 1rem;
+      margin: 1.5rem 0;
+      background-color: #fefefe;
+    }
+    .experiment h3 {
+      margin-top: 0;
+    }
+    .experiment p {
+      margin: 0.5rem 0;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 800px;
+      margin-bottom: 1rem;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem 1rem;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+    /* Mermaid container styling */
+    .mermaid {
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 5px;
+      overflow-x: auto; /* In case diagrams get wide */
+    }
+  </style>
+</head>
+<body>
+
+<h1>HTTP Call Benchmark on a Spark Cluster (with Mermaid Diagrams)</h1>
+<p>This presentation outlines how HTTP calls were tested in different modes (synchronous vs. asynchronous, on Driver vs. Worker nodes) and shows the observed performance results.</p>
+
+<h2>High-Level Architecture</h2>
+<p>At a high level, a Spark application has a single <strong>Driver</strong> node that coordinates tasks and multiple <strong>Worker/Executor</strong> nodes that actually do the work in parallel. Below, we illustrate how HTTP requests flow in each experiment.</p>
+
+<h2>Experiments</h2>
+
+<!-- 1. Driver - Sync -->
+<div class="experiment">
+  <h3>1. On the Driver - Synchronous</h3>
+  <p><strong>Location:</strong> Driver Node (single machine)</p>
+  <p><strong>Method:</strong> Loop over N requests synchronously using <code>requests.get()</code>.</p>
+  <p><strong>Observations:</strong></p>
+  <ul>
+    <li>Sequential, no parallelization.</li>
+    <li>Each request is blocked until finished before the next starts.</li>
+    <li>~1 request/second overall throughput (example logs).</li>
+  </ul>
+  <div class="mermaid">
+flowchart TB
+    subgraph Driver_Node
+      A([for i in 1..N]) --> B([requests.get - one at a time])
+    end
+    B --> C([Collect each HTTP response in sequence])
+  </div>
+  <p><strong>Sample Performance (10 calls):</strong> ~10.7 seconds total</p>
+  <p><strong>Sample Performance (100 calls):</strong> ~106 seconds total</p>
+</div>
+
+<!-- 2. Driver - Async -->
+<div class="experiment">
+  <h3>2. On the Driver - Asynchronous</h3>
+  <p><strong>Location:</strong> Driver Node (single machine)</p>
+  <p><strong>Method:</strong> Use <code>asyncio</code> + <code>aiohttp</code> to dispatch multiple GET requests in parallel.</p>
+  <p><strong>Observations:</strong></p>
+  <ul>
+    <li>All requests are created and awaited in parallel via asyncio’s event loop.</li>
+    <li>About 4× speedup vs. synchronous on a single node (example data).</li>
+    <li>~4 requests/second overall throughput (example logs).</li>
+  </ul>
+  <div class="mermaid">
+flowchart TB
+    subgraph Driver_Node
+      A([Create async tasks 1..N]) --> B([aiohttp.get calls])
+      B --> C([asyncio.gather all tasks])
+      C --> D([Collect responses once all done])
+    end
+  </div>
+  <p><strong>Sample Performance (10 calls):</strong> ~3.0 seconds total</p>
+  <p><strong>Sample Performance (100 calls):</strong> ~15.5 seconds total</p>
+</div>
+
+<!-- 3. Executors - Sync -->
+<div class="experiment">
+  <h3>3. On the Executors - Synchronous</h3>
+  <p><strong>Location:</strong> Multiple Worker Nodes (Executors)</p>
+  <p><strong>Method:</strong> Create a DataFrame with N rows, each row triggers <code>requests.get()</code>, distributed via Spark transformations.</p>
+  <p><strong>Observations:</strong></p>
+  <ul>
+    <li>Tasks distributed among multiple executors, each calls the endpoint synchronously on its partition's rows.</li>
+    <li>Faster for large N than a single-node approach, but overhead of Spark job can matter for small N.</li>
+  </ul>
+  <div class="mermaid">
+flowchart LR
+    subgraph Driver_Node
+      A[Spark Job Submission]
+    end
+    A --> B{Executors}
+    subgraph Worker_Nodes
+      W1([Executor 1: sync calls])
+      W2([Executor 2: sync calls])
+      Wn([Executor N...])
+    end
+    B --> W1
+    B --> W2
+    B --> Wn
+    W1 --> R([Aggregate partial results])
+    W2 --> R
+    Wn --> R
+    R --> A([Return final results to Driver])
+  </div>
+  <p><strong>Sample Performance (10 calls):</strong> ~7.0 seconds total</p>
+  <p><strong>Sample Performance (100 calls):</strong> ~25.8 seconds total</p>
+</div>
+
+<!-- 4. Executors - Async -->
+<div class="experiment">
+  <h3>4. On the Executors - Asynchronous</h3>
+  <p><strong>Location:</strong> Multiple Worker Nodes (Executors)</p>
+  <p><strong>Method:</strong> Each worker uses <code>asyncio</code> + <code>aiohttp</code> (e.g., in <code>mapPartitions</code>) to parallelize calls within each partition asynchronously.</p>
+  <p><strong>Observations:</strong></p>
+  <ul>
+    <li>Potentially highest throughput if the cluster is large enough.</li>
+    <li>Overhead of distribution + async might mean for small N, a single-node async approach can be comparable or faster.</li>
+  </ul>
+  <div class="mermaid">
+flowchart LR
+    subgraph Driver_Node
+      A[Spark Job Submission]
+    end
+    A --> B{Executors}
+    subgraph Worker_Nodes
+      W1([Executor 1: async calls])
+      W2([Executor 2: async calls])
+      Wn([Executor N...])
+    end
+    B --> W1
+    B --> W2
+    B --> Wn
+    W1 --> R([Aggregate partial results])
+    W2 --> R
+    Wn --> R
+    R --> A([Return final results to Driver])
+  </div>
+  <p><strong>Sample Performance (100 calls):</strong> ~14.9 seconds total</p>
+</div>
+
+<h2>Summary Table</h2>
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Experiment</th>
+        <th>Location</th>
+        <th>Concurrency Method</th>
+        <th>Approx Throughput</th>
+        <th>Example Timings</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1. Driver - Sync</td>
+        <td>Driver Node</td>
+        <td>Synchronous (requests)</td>
+        <td>~1 req/sec</td>
+        <td>~10.7 s (10 calls), ~106 s (100 calls)</td>
+      </tr>
+      <tr>
+        <td>2. Driver - Async</td>
+        <td>Driver Node</td>
+        <td>Async I/O (aiohttp)</td>
+        <td>~4 req/sec</td>
+        <td>~3 s (10 calls), ~15.5 s (100 calls)</td>
+      </tr>
+      <tr>
+        <td>3. Executors - Sync</td>
+        <td>Worker Nodes (multiple)</td>
+        <td>Synchronous (requests)</td>
+        <td>Varies with cluster size</td>
+        <td>~7 s (10 calls), ~25.8 s (100 calls)</td>
+      </tr>
+      <tr>
+        <td>4. Executors - Async</td>
+        <td>Worker Nodes (multiple)</td>
+        <td>Async I/O (aiohttp) in <code>mapPartitions</code></td>
+        <td>Varies with cluster size</td>
+        <td>~14.9 s (100 calls)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p><em>Note:</em> Timings and throughput are from illustrative examples. Actual numbers vary by hardware, network, and concurrency limits.</p>
+
+<h2>Conclusions &amp; Next Steps</h2>
+<ul>
+  <li><strong>If only a few thousand requests</strong> are needed, async on the Driver might be simplest and cost-effective.</li>
+  <li><strong>For higher concurrency</strong>, distributing calls across executors can scale horizontally.</li>
+  <li><strong>Network and the endpoint’s capacity</strong> are often real bottlenecks. Too many parallel calls might overwhelm the target service or the cluster’s network.</li>
+</ul>
+
+<!-- Mermaid JS from CDN -->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true });
+</script>
+
+</body>
+</html>
